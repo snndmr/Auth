@@ -26,9 +26,6 @@
         <tag/>
         <url/>
     </scm>
-    <properties>
-        <java.version>21</java.version>
-    </properties>
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -67,7 +64,28 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+      <dependency>
+        <artifactId>jjwt-api</artifactId>
+        <groupId>io.jsonwebtoken</groupId>
+        <version>${jjwt.version}</version>
+      </dependency>
+      <dependency>
+        <artifactId>jjwt-impl</artifactId>
+        <groupId>io.jsonwebtoken</groupId>
+        <scope>runtime</scope>
+        <version>${jjwt.version}</version>
+      </dependency>
+      <dependency>
+        <artifactId>jjwt-jackson</artifactId>
+        <groupId>io.jsonwebtoken</groupId>
+        <scope>runtime</scope>
+        <version>${jjwt.version}</version>
+        </dependency>
     </dependencies>
+    <properties>
+        <java.version>21</java.version>
+      <jjwt.version>0.12.5</jjwt.version>
+    </properties>
 
     <build>
         <plugins>
