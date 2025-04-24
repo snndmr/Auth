@@ -2,6 +2,7 @@ package com.snn.auth.application.service.impl;
 
 import com.snn.auth.application.RefreshTokenRepository;
 import com.snn.auth.application.UserRepository;
+import com.snn.auth.application.exception.TokenRefreshException;
 import com.snn.auth.domain.RefreshToken;
 import com.snn.auth.domain.User;
 import org.slf4j.Logger;

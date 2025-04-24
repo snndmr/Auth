@@ -1,4 +1,4 @@
-package com.snn.auth.application.service.impl;
+package com.snn.auth.application.exception;
 
 public class TokenRefreshException extends RuntimeException {
     public TokenRefreshException(String token, String message) {

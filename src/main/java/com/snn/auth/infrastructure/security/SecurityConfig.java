@@ -14,22 +14,19 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private final UserDetailsServiceImpl userDetailsService;
     private final AuthEntryPointJwt unauthorizedHandler;
     private final JwtAuthFilter jwtAuthFilter;
 
-    public SecurityConfig(
-            UserDetailsServiceImpl userDetailsService,
-            AuthEntryPointJwt unauthorizedHandler,
-            JwtAuthFilter jwtAuthFilter) {
-        this.userDetailsService = userDetailsService;
+    private static final String[] AUTH_WHITELIST = {"/api/auth/**", "/h2-console/**", "/v3/api-docs/**",
+                                                    "/swagger-ui/**", "/swagger-ui.html"};
+
+    public SecurityConfig(AuthEntryPointJwt unauthorizedHandler, JwtAuthFilter jwtAuthFilter) {
         this.unauthorizedHandler = unauthorizedHandler;
         this.jwtAuthFilter = jwtAuthFilter;
     }
@@ -49,12 +46,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
             .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
-            .authorizeHttpRequests(authorize -> authorize.requestMatchers(new AntPathRequestMatcher("/api/auth/**"))
-                                                         .permitAll()
-                                                         .requestMatchers(new AntPathRequestMatcher("/h2-console/**"))
-                                                         .permitAll()
-                                                         .anyRequest()
-                                                         .authenticated())
+            .authorizeHttpRequests(
+                    authorize -> authorize.requestMatchers(AUTH_WHITELIST).permitAll().anyRequest().authenticated())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin));
 

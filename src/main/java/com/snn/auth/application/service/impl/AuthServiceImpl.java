@@ -1,9 +1,9 @@
 package com.snn.auth.application.service.impl;
 
-import com.snn.auth.application.RefreshTokenRepository;
 import com.snn.auth.application.RoleRepository;
 import com.snn.auth.application.UserRepository;
 import com.snn.auth.application.dto.*;
+import com.snn.auth.application.exception.TokenRefreshException;
 import com.snn.auth.application.service.AuthService;
 import com.snn.auth.domain.RefreshToken;
 import com.snn.auth.domain.Role;
@@ -37,7 +37,6 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
     private final RefreshTokenService refreshTokenService;
-    private final RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
     public AuthServiceImpl(
@@ -45,16 +44,13 @@ public class AuthServiceImpl implements AuthService {
             RoleRepository roleRepository,
             AuthenticationManager authenticationManager,
             PasswordEncoder passwordEncoder,
-            JwtUtils jwUtils,
-            RefreshTokenService refreshTokenService,
-            RefreshTokenRepository refreshTokenRepository) {
+            JwtUtils jwUtils, RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwUtils;
         this.refreshTokenService = refreshTokenService;
-        this.refreshTokenRepository = refreshTokenRepository;
     }
 
     @Override

@@ -81,6 +81,11 @@
             <scope>runtime</scope>
             <version>${jjwt.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.5.0</version>
+        </dependency>
     </dependencies>
     <properties>
         <java.version>21</java.version>
