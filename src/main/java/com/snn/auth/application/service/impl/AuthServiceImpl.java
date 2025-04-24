@@ -1,11 +1,11 @@
 package com.snn.auth.application.service.impl;
 
+import com.snn.auth.application.RefreshTokenRepository;
 import com.snn.auth.application.RoleRepository;
 import com.snn.auth.application.UserRepository;
-import com.snn.auth.application.dto.LoginRequest;
-import com.snn.auth.application.dto.LoginResponse;
-import com.snn.auth.application.dto.RegisterRequest;
+import com.snn.auth.application.dto.*;
 import com.snn.auth.application.service.AuthService;
+import com.snn.auth.domain.RefreshToken;
 import com.snn.auth.domain.Role;
 import com.snn.auth.domain.User;
 import com.snn.auth.infrastructure.security.JwtUtils;
@@ -36,6 +36,8 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
+    private final RefreshTokenService refreshTokenService;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
     public AuthServiceImpl(
@@ -43,12 +45,16 @@ public class AuthServiceImpl implements AuthService {
             RoleRepository roleRepository,
             AuthenticationManager authenticationManager,
             PasswordEncoder passwordEncoder,
-            JwtUtils jwUtils) {
+            JwtUtils jwUtils,
+            RefreshTokenService refreshTokenService,
+            RefreshTokenRepository refreshTokenRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwUtils;
+        this.refreshTokenService = refreshTokenService;
+        this.refreshTokenRepository = refreshTokenRepository;
     }
 
     @Override
@@ -82,6 +88,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public LoginResponse loginUser(LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
@@ -91,10 +98,31 @@ public class AuthServiceImpl implements AuthService {
         String jwt = jwtUtils.generateJwtToken(authentication);
 
         User userDetails = (User) authentication.getPrincipal();
+        RefreshToken refreshToken = refreshTokenService.createOrUpdateRefreshToken(userDetails.getId());
         List<String> roles = userDetails.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList();
-
         logger.info("User {} successfully logged in", userDetails.getUsername());
 
-        return new LoginResponse(jwt, userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), roles);
+        return new LoginResponse(jwt, refreshToken.getToken(), userDetails.getId(), userDetails.getUsername(),
+                                 userDetails.getEmail(), roles);
+    }
+
+    @Transactional
+    public RefreshTokenResponse refreshToken(RefreshTokenRequest refreshTokenRequest) {
+        String requestRefreshToken = refreshTokenRequest.getRefreshToken();
+        logger.info("Request refresh token: {}", requestRefreshToken);
+
+        return refreshTokenService.findByToken(requestRefreshToken)
+                                  .map(refreshTokenService::verifyExpiration)
+                                  .map(RefreshToken::getUser)
+                                  .map(user -> {
+                                      String newAccessToken = jwtUtils.generateTokenFromUsername(user.getUsername());
+                                      logger.info("Generated new access token for user: {}", user.getUsername());
+
+                                      return new RefreshTokenResponse(newAccessToken, requestRefreshToken);
+                                  })
+                .orElseThrow(() -> {
+                    logger.warn("Refresh token not found in database: {}", requestRefreshToken);
+                    return new TokenRefreshException(requestRefreshToken, "Refresh token is not in database!");
+                });
     }
 }
