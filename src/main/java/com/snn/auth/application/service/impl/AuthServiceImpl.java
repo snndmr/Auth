@@ -10,8 +10,6 @@ import com.snn.auth.domain.Role;
 import com.snn.auth.domain.User;
 import com.snn.auth.infrastructure.security.JwtUtils;
 import jakarta.transaction.Transactional;
-import java.util.List;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,74 +23,78 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+import java.util.Set;
+
 @Service
 public class AuthServiceImpl implements AuthService {
 
-  public static final String ROLE_USER = "ROLE_USER";
-  private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
-  private final UserRepository userRepository;
-  private final RoleRepository roleRepository;
-  private final PasswordEncoder passwordEncoder;
-  private final AuthenticationManager authenticationManager;
-  private final JwtUtils jwtUtils;
+    public static final String ROLE_USER = "ROLE_USER";
+    private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtils jwtUtils;
 
-  @Autowired
-  public AuthServiceImpl(UserRepository userRepository, RoleRepository roleRepository,
-      AuthenticationManager authenticationManager, PasswordEncoder passwordEncoder,
-      JwtUtils jwUtils) {
-    this.userRepository = userRepository;
-    this.roleRepository = roleRepository;
-    this.passwordEncoder = passwordEncoder;
-    this.authenticationManager = authenticationManager;
-    this.jwtUtils = jwUtils;
-  }
-
-  @Override
-  @Transactional
-  public void registerUser(RegisterRequest registerRequest) {
-    logger.info("Attempting registration for user: {}", registerRequest.getUsername());
-
-    if (userRepository.existsUserByUsername(registerRequest.getUsername())) {
-      logger.warn("User {} already exists", registerRequest.getUsername());
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username already exists");
+    @Autowired
+    public AuthServiceImpl(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            AuthenticationManager authenticationManager,
+            PasswordEncoder passwordEncoder,
+            JwtUtils jwUtils) {
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.authenticationManager = authenticationManager;
+        this.jwtUtils = jwUtils;
     }
 
-    if (userRepository.existsUserByEmail(registerRequest.getEmail())) {
-      logger.warn("Email {} already exists", registerRequest.getEmail());
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already exists");
+    @Override
+    @Transactional
+    public void registerUser(RegisterRequest registerRequest) {
+        logger.info("Attempting registration for user: {}", registerRequest.getUsername());
+
+        if (userRepository.existsUserByUsername(registerRequest.getUsername())) {
+            logger.warn("User {} already exists", registerRequest.getUsername());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username already exists");
+        }
+
+        if (userRepository.existsUserByEmail(registerRequest.getEmail())) {
+            logger.warn("Email {} already exists", registerRequest.getEmail());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already exists");
+        }
+
+        User user = new User(registerRequest.getUsername(), registerRequest.getEmail(),
+                             passwordEncoder.encode(registerRequest.getPassword()));
+
+        Role userRole = roleRepository.findByName(ROLE_USER)
+                .orElseThrow(() -> {
+                    logger.error("Role {} not found", ROLE_USER);
+                    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Role not found");
+                });
+
+        user.setRoles(Set.of(userRole));
+
+        userRepository.save(user);
+        logger.info("User {} successfully registered", registerRequest.getUsername());
     }
 
-    User user = new User(registerRequest.getUsername(), registerRequest.getEmail(),
-        passwordEncoder.encode(registerRequest.getPassword()));
+    @Override
+    public LoginResponse loginUser(LoginRequest loginRequest) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
 
-    Role userRole = roleRepository.findByName(ROLE_USER).orElseThrow(() -> {
-      logger.error("Role {} not found", ROLE_USER);
-      return new ResponseStatusException(HttpStatus.NOT_FOUND, "Role not found");
-    });
+        SecurityContextHolder.getContext().setAuthentication(authentication);
 
-    user.setRoles(Set.of(userRole));
+        String jwt = jwtUtils.generateJwtToken(authentication);
 
-    userRepository.save(user);
-    logger.info("User {} successfully registered", registerRequest.getUsername());
-  }
+        User userDetails = (User) authentication.getPrincipal();
+        List<String> roles = userDetails.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList();
 
-  @Override
-  public LoginResponse loginUser(LoginRequest loginRequest) {
-    Authentication authentication = authenticationManager.authenticate(
-        new UsernamePasswordAuthenticationToken(loginRequest.getUsername(),
-            loginRequest.getPassword()));
+        logger.info("User {} successfully logged in", userDetails.getUsername());
 
-    SecurityContextHolder.getContext().setAuthentication(authentication);
-
-    String jwt = jwtUtils.generateJwtToken(authentication);
-
-    User userDetails = (User) authentication.getPrincipal();
-    List<String> roles = userDetails.getAuthorities().stream().map(GrantedAuthority::getAuthority)
-        .toList();
-
-    logger.info("User {} successfully logged in", userDetails.getUsername());
-
-    return new LoginResponse(jwt, userDetails.getId(), userDetails.getUsername(),
-        userDetails.getEmail(), roles);
-  }
+        return new LoginResponse(jwt, userDetails.getId(), userDetails.getUsername(), userDetails.getEmail(), roles);
+    }
 }

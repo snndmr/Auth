@@ -6,7 +6,7 @@ import com.snn.auth.application.dto.RegisterRequest;
 
 public interface AuthService {
 
-  void registerUser(RegisterRequest registerRequest);
+    void registerUser(RegisterRequest registerRequest);
 
-  LoginResponse loginUser(LoginRequest loginRequest);
+    LoginResponse loginUser(LoginRequest loginRequest);
 }
